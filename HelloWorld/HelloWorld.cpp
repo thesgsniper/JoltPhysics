@@ -222,7 +222,7 @@ public:
 		ObjectVsBroadPhaseLayerFilterImpl object_vs_broadphase_layer_filter; // filter object by broadphase
 		ObjectLayerPairFilterImpl object_vs_object_layer_filter; // 
 
-		PhysicsSystem physics_system; // actual physics system
+		PhysicsSystem* physics_system; // actual physics system
 		MyBodyActivationListener body_activation_listener;
 		MyContactListener contact_listener;
 
@@ -241,9 +241,8 @@ public:
 
 	Physics::Physics() 
 	{
-		temp_allocator = new TempAllocatorImpl(10 * 1024 * 1024);
-		job_system = new JobSystemThreadPool(cMaxPhysicsJobs,
-			cMaxPhysicsBarriers, thread::hardware_concurrency() - 1);
+
+		
 		Init();
 	}
 
@@ -257,16 +256,22 @@ public:
 			Factory::sInstance = new Factory(); // Create a factory
 		RegisterTypes(); // Register all Jolt physics types
 
+		// THESE NEED TO BE ALLOCATED IN THE SAME ORDER, OTHERWISE JOLT's
+		// OVERRIDE NEW AND DELETE GETS REALLY FUSSY
+		temp_allocator = new TempAllocatorImpl(10 * 1024 * 1024);
+		job_system = new JobSystemThreadPool(cMaxPhysicsJobs,
+			cMaxPhysicsBarriers, thread::hardware_concurrency() - 1);
+		physics_system = new PhysicsSystem();
 
-		physics_system.Init(cMaxBodies, cNumBodyMutexes, cMaxBodyPairs,
+		physics_system->Init(cMaxBodies, cNumBodyMutexes, cMaxBodyPairs,
 			cMaxContactConstraints, broad_phase_layer_interface,
 			object_vs_broadphase_layer_filter, object_vs_object_layer_filter);
 
-		physics_system.SetBodyActivationListener(&body_activation_listener);
-		physics_system.SetContactListener(&contact_listener);
+		physics_system->SetBodyActivationListener(&body_activation_listener);
+		physics_system->SetContactListener(&contact_listener);
 
 		//anytime you want to access rigidbodies, need this!
-		BodyInterface& body_interface = physics_system.GetBodyInterface();
+		BodyInterface& body_interface = physics_system->GetBodyInterface();
 
 		// Test Objects, to be deleted later.
 
@@ -312,13 +317,13 @@ public:
 		body_interface.SetLinearVelocity(sphere_id, Vec3(0.0f, -5.0f, 0.0f));
 
 		// ideally you do this after initialising a lot of physics objects.
-		physics_system.OptimizeBroadPhase();
+		physics_system->OptimizeBroadPhase();
 	}
 	void Physics::Update()
 	{
 		uint step = 0;
 		//anytime you want to access rigidbodies, need this!
-		BodyInterface& body_interface = physics_system.GetBodyInterface();
+		BodyInterface& body_interface = physics_system->GetBodyInterface();
 
 		while (body_interface.IsActive(sphere_id))
 		{
@@ -340,12 +345,12 @@ public:
 			const int cCollisionSteps = 1;
 
 			// Step the world
-			physics_system.Update(cDeltaTime, cCollisionSteps, temp_allocator, job_system);
+			physics_system->Update(cDeltaTime, cCollisionSteps, temp_allocator, job_system);
 		}
 	}
 	void Physics::Exit()
 	{
-		BodyInterface& body_interface = physics_system.GetBodyInterface();
+		BodyInterface& body_interface = physics_system->GetBodyInterface();
 
 		// Remove the sphere from the physics system. Note that the sphere itself keeps all of its state and can be re-added at any time.
 		body_interface.RemoveBody(sphere_id);
@@ -366,6 +371,7 @@ public:
 
 		delete this->temp_allocator;
 		delete this->job_system;
+		delete this->physics_system;
 	}
 
 
