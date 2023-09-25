@@ -250,7 +250,7 @@ public:
 	{
 		RegisterDefaultAllocator(); // Register allocation hook
 
-		Trace = TraceImpl; // Install callbacks
+		//Trace = TraceImpl; // Install callbacks
 		JPH_IF_ENABLE_ASSERTS(AssertFailed = AssertFailedImpl;)
 
 			Factory::sInstance = new Factory(); // Create a factory
